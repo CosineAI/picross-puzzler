@@ -3,13 +3,57 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>My Static Site</title>
+  <title>Picross (Nonogram)</title>
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+  <header>
+    <h1>Picross</h1>
+    <p style="margin: .25rem 0 0; opacity: .85; font-weight: 500;">Logic picture puzzle</p>
+  </header>
+
   <main>
-    <h1>Welcome to Your Static Site</h1>
+    <section class="controls">
+      <div class="controls__left">
+        <label for="sizeSelect" class="label">Size</label>
+        <select id="sizeSelect" class="select">
+          <option value="5">5 × 5</option>
+          <option value="10" selected>10 × 10</option>
+          <option value="15">15 × 15</option>
+          <option value="20">20 × 20</option>
+        </select>
+        <button id="newBtn" class="btn">New puzzle</button>
+      </div>
+
+      <div class="controls__right">
+        <div class="segmented" role="group" aria-label="Input mode">
+          <button id="modeFill" class="btn btn--seg is-active" data-mode="fill" aria-pressed="true" type="button">Paint</button>
+          <button id="modeMark" class="btn btn--seg" data-mode="mark" aria-pressed="false" type="button">Mark</button>
+        </div>
+
+        <label class="toggle">
+          <input type="checkbox" id="mistakesToggle">
+          <span>Show mistakes</span>
+        </label>
+
+        <button id="checkBtn" class="btn btn--primary" type="button">Check</button>
+      </div>
+    </section>
+
+    <section class="board-wrap">
+      <div id="nonogram" class="nonogram" aria-label="Picross board" role="application">
+        <div class="corner" aria-hidden="true"></div>
+        <div id="colClues" class="col-clues" aria-hidden="false"></div>
+        <div id="rowClues" class="row-clues" aria-hidden="false"></div>
+        <div id="board" class="board" role="grid" aria-label="Board" oncontextmenu="return false"></div>
+      </div>
+    </section>
+
+    <p class="hint">Tip: Left-click to paint, right-click to mark with an X. Hold and drag to draw. Use the mode toggle to lock Paint or Mark.</p>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
+
   <footer>
     <p>&copy; 2025 Your Name</p>
   </footer>

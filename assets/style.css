@@ -6,7 +6,7 @@ html, body {
 
 body {
   height: 100vh;
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   margin: 0;
   background: linear-gradient(120deg, #f8fafc 70%, #e7eaf2 100%);
   color: #222;
@@ -26,16 +26,16 @@ header {
 
 main {
   flex: 1 0 auto;
-  max-width: 750px;
+  max-width: 900px;
   width: 100%;
   margin: 2.2rem auto 0 auto;
   background: #fff;
-  padding: 2.8rem 2.2rem 2.4rem;
+  padding: 2.0rem 2.2rem 2.0rem;
   border-radius: 18px;
   box-shadow: 0 6px 32px 0 rgba(42,54,96,0.07), 0 1.5px 6px 0 rgba(0,0,0,0.03);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 65vh;
   position: relative;
   overflow-y: auto;
@@ -53,10 +53,332 @@ footer {
   flex-shrink: 0;
 }
 
+/* Controls */
+.controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.controls__left,
+.controls__right {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.label {
+  font-size: .95rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.select {
+  appearance: none;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  padding: .45rem 2.0rem .45rem .7rem;
+  border-radius: 10px;
+  font-size: .95rem;
+  color: #111827;
+  background-image: linear-gradient(45deg, transparent 50%, #6b7280 50%), linear-gradient(135deg, #6b7280 50%, transparent 50%);
+  background-position: calc(100% - 14px) calc(1em + 2px), calc(100% - 9px) calc(1em + 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  padding: .5rem .8rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: .95rem;
+  font-weight: 600;
+  transition: transform 120ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.btn--primary {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff;
+  border-color: transparent;
+}
+
+.segmented {
+  display: inline-flex;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.btn--seg {
+  border: none;
+  background: transparent;
+  padding: .5rem .85rem;
+  border-radius: 0;
+  color: #374151;
+}
+
+.btn--seg.is-active {
+  background: #fff;
+  color: #111827;
+  box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-weight: 600;
+  color: #374151;
+  user-select: none;
+}
+
+.toggle input {
+  transform: translateY(1px);
+}
+
+/* Board layout */
+.board-wrap {
+  display: grid;
+  place-items: center;
+}
+
+.nonogram {
+  --cell: 32px; /* default, overridden via JS */
+  --size: 10;
+  --clue-bg: #f8fafc;
+  --clue-color: #111827;
+  --grid-line: #e5e7eb;
+  --grid-thick: #c7cdd6;
+  --fill-grad-a: #4f46e5;
+  --fill-grad-b: #6366f1;
+
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+}
+
+.corner {
+  grid-column: 1;
+  grid-row: 1;
+  background: #eef2f7;
+  border-bottom: 1px solid var(--grid-line);
+  border-right: 1px solid var(--grid-line);
+  min-width: 90px;
+  min-height: 90px;
+}
+
+.col-clues {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--size), var(--cell));
+  background: var(--clue-bg);
+  border-bottom: 1px solid var(--grid-line);
+}
+
+.row-clues {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(var(--size), var(--cell));
+  background: var(--clue-bg);
+  border-right: 1px solid var(--grid-line);
+}
+
+.col-clue {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: .25rem 0 .35rem;
+  gap: .2rem;
+  color: var(--clue-color);
+  font-weight: 700;
+  font-size: .95rem;
+  min-height: var(--cell);
+}
+
+.row-clue {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 .5rem 0 .5rem;
+  gap: .4rem;
+  color: var(--clue-color);
+  font-weight: 700;
+  font-size: .95rem;
+  min-width: 90px;
+  min-height: var(--cell);
+}
+
+.clue-number {
+  line-height: 1;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  padding: .2rem .35rem;
+  min-width: 1.8ch;
+  text-align: center;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+}
+
+.clue--ok .clue-number {
+  background: #e8f9ee;
+  border-color: #b7e5c8;
+  color: #0b6b38;
+}
+
+/* Board grid */
+.board {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--size), var(--cell));
+  grid-template-rows: repeat(var(--size), var(--cell));
+  background:
+    linear-gradient(#e5e7eb 1px, transparent 1px) 0 0 / var(--cell) var(--cell),
+    linear-gradient(90deg, #e5e7eb 1px, transparent 1px) 0 0 / var(--cell) var(--cell),
+    linear-gradient(#c7cdd6 1px, transparent 1px) 0 0 / calc(var(--cell) * 5) calc(var(--cell) * 5),
+    linear-gradient(90deg, #c7cdd6 1px, transparent 1px) 0 0 / calc(var(--cell) * 5) calc(var(--cell) * 5);
+  user-select: none;
+}
+
+.cell {
+  position: relative;
+  width: var(--cell);
+  height: var(--cell);
+  cursor: pointer;
+  background: #fff;
+  transition: background-color 140ms ease, transform 120ms ease, box-shadow 140ms ease;
+  outline: none;
+  border: none;
+  padding: 0;
+}
+
+.cell:focus-visible {
+  box-shadow: inset 0 0 0 2px #93c5fd;
+}
+
+/* Fill animation layer */
+.cell::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--fill-grad-a), var(--fill-grad-b));
+  transform: scale(0.2);
+  opacity: 0;
+  transition: transform 160ms cubic-bezier(.2,.8,.2,1), opacity 160ms ease;
+}
+
+.cell.cell--filled::before {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* X mark */
+.cell .x, .cell .x::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72%;
+  height: 2px;
+  background: #6b7280;
+  transform-origin: center;
+  border-radius: 2px;
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.cell .x {
+  transform: translate(-50%, -50%) rotate(45deg) scaleX(0);
+  transition: transform 120ms ease, opacity 140ms ease;
+}
+
+.cell .x::before {
+  transform: translate(-50%, -50%) rotate(-90deg) scaleX(0);
+  transition: transform 120ms ease, opacity 140ms ease;
+}
+
+.cell.cell--marked .x {
+  transform: translate(-50%, -50%) rotate(45deg) scaleX(1);
+}
+
+.cell.cell--marked .x::before {
+  transform: translate(-50%, -50%) rotate(-90deg) scaleX(1);
+}
+
+/* Mistake pulse */
+@keyframes pulse {
+  0% { box-shadow: inset 0 0 0 0 rgba(239,68,68,0); }
+  35% { box-shadow: inset 0 0 0 3px rgba(239,68,68,0.9); }
+  100% { box-shadow: inset 0 0 0 0 rgba(239,68,68,0); }
+}
+.cell--mistake {
+  animation: pulse 520ms ease;
+}
+
+/* Hint and toast */
+.hint {
+  margin: .9rem 0 0;
+  color: #6b7280;
+  text-align: center;
+  font-size: .95rem;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(30px);
+  background: #111827;
+  color: #fff;
+  padding: .55rem .85rem;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 200ms ease, opacity 200ms ease;
+  font-weight: 600;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* Responsive tweaks */
 @media (max-width: 850px) {
   main {
     max-width: 98vw;
     padding: 1.2rem 1rem 1.3rem;
   }
-
+  .corner { min-width: 72px; min-height: 72px; }
+  .row-clue { min-width: 72px; font-size: .9rem; }
+  .col-clue { font-size: .9rem; }
 }
