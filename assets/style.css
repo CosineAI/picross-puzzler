@@ -5,14 +5,15 @@ html, body {
 }
 
 body {
-  height: 100vh;
+  min-height: 100vh;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   margin: 0;
   background: linear-gradient(120deg, #f8fafc 70%, #e7eaf2 100%);
   color: #222;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 header {
@@ -38,7 +39,7 @@ main {
   justify-content: flex-start;
   min-height: 65vh;
   position: relative;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 footer {
