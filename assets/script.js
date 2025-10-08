@@ -14,6 +14,8 @@
     winModal: document.getElementById('winModal'),
     modalNew: document.getElementById('modalNew'),
     modalClose: document.getElementById('modalClose'),
+    ensureSolvable: document.getElementById('ensureSolvable'),
+    busy: document.getElementById('busy'),
   };
 
   const State = {
@@ -92,6 +94,187 @@
       lineCluesFromBools(solution.map(row => row[c]))
     );
     return { rows, cols };
+  }
+
+  // ----------------------------
+  // Logic solver (line possibilities)
+  // ----------------------------
+
+  function normalizeClues(clues) {
+    if (clues.length === 1 && clues[0] === 0) return [];
+    return clues.slice();
+  }
+
+  function sum(arr) {
+    let s = 0;
+    for (let i = 0; i < arr.length; i++) s += arr[i];
+    return s;
+  }
+
+  function genLinePossibilities(len, clues, current) {
+    clues = normalizeClues(clues);
+    const res = [];
+    const n = clues.length;
+
+    function fitsSet(arr, start, end, val) {
+      for (let i = start; i < end; i++) {
+        const cur = current[i];
+        if (cur !== -1 && cur !== val) return false;
+        arr[i] = val;
+      }
+      return true;
+    }
+
+    function place(idx, pos, arr) {
+      if (idx >= n) {
+        // fill rest zeros
+        const endOK = fitsSet(arr, pos, len, 0);
+        if (endOK) res.push(arr.slice());
+        return;
+      }
+      const k = clues[idx];
+      // compute minimal remaining length required for remaining clues
+      const remBlocks = clues.slice(idx + 1);
+      const minRem = (remBlocks.length > 0 ? sum(remBlocks) + remBlocks.length : 0); // spaces between remaining blocks
+      const maxStart = len - (k + minRem);
+
+      for (let s = pos; s <= maxStart; s++) {
+        const nextArr = arr.slice();
+        // zeros up to start
+        if (!fitsSet(nextArr, pos, s, 0)) continue;
+        // ones block
+        if (!fitsSet(nextArr, s, s + k, 1)) continue;
+
+        let nextPos = s + k;
+        if (idx < n - 1) {
+          // separator zero
+          if (nextPos >= len) continue;
+          if (!fitsSet(nextArr, nextPos, nextPos + 1, 0)) continue;
+          nextPos += 1;
+        }
+        place(idx + 1, nextPos, nextArr);
+      }
+    }
+
+    // Special case: no clues -> all zeros
+    if (n === 0) {
+      const arr = new Array(len).fill(0);
+      for (let i = 0; i < len; i++) {
+        if (current[i] !== -1 && current[i] !== 0) return [];
+      }
+      res.push(arr);
+      return res;
+    }
+
+    place(0, 0, new Array(len).fill(-1));
+    return res;
+  }
+
+  function deduceFromPossibilities(poss) {
+    if (poss.length === 0) return null; // contradiction
+    const len = poss[0].length;
+    const ded = new Array(len).fill(-1);
+    for (let i = 0; i < len; i++) {
+      let all1 = true, all0 = true;
+      for (let p = 0; p < poss.length; p++) {
+        if (poss[p][i] === 1) all0 = false;
+        else all1 = false;
+        if (!all1 && !all0) break;
+      }
+      if (all1) ded[i] = 1;
+      else if (all0) ded[i] = 0;
+    }
+    return ded;
+  }
+
+  function logicSolve(rowClues, colClues, size) {
+    const grid = Array.from({ length: size }, () => new Array(size).fill(-1));
+    let changed = true;
+
+    function applyLineToGrid(isRow, index, ded) {
+      let any = false;
+      if (isRow) {
+        const row = grid[index];
+        for (let i = 0; i < size; i++) {
+          if (ded[i] !== -1 && row[i] === -1) {
+            row[i] = ded[i];
+            any = true;
+          }
+        }
+      } else {
+        for (let i = 0; i < size; i++) {
+          if (ded[i] !== -1 && grid[i][index] === -1) {
+            grid[i][index] = ded[i];
+            any = true;
+          }
+        }
+      }
+      return any;
+    }
+
+    while (changed) {
+      changed = false;
+
+      // Rows
+      for (let r = 0; r < size; r++) {
+        const line = grid[r];
+        const poss = genLinePossibilities(size, rowClues[r], line);
+        if (poss.length === 0) return { contradiction: true, solved: false, grid };
+        const ded = deduceFromPossibilities(poss);
+        if (ded == null) return { contradiction: true, solved: false, grid };
+        if (applyLineToGrid(true, r, ded)) changed = true;
+      }
+
+      // Cols
+      for (let c = 0; c < size; c++) {
+        const line = new Array(size);
+        for (let r = 0; r < size; r++) line[r] = grid[r][c];
+        const poss = genLinePossibilities(size, colClues[c], line);
+        if (poss.length === 0) return { contradiction: true, solved: false, grid };
+        const ded = deduceFromPossibilities(poss);
+        if (ded == null) return { contradiction: true, solved: false, grid };
+        if (applyLineToGrid(false, c, ded)) changed = true;
+      }
+    }
+
+    // Check solved
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (grid[r][c] === -1) {
+          return { contradiction: false, solved: false, grid };
+        }
+      }
+    }
+    return { contradiction: false, solved: true, grid };
+  }
+
+  async function generateSolvablePuzzle(size) {
+    const deadline = Date.now() + (size <= 10 ? 2500 : size <= 15 ? 4500 : 7000);
+    let attempts = 0;
+    while (Date.now() < deadline && attempts < 800) {
+      attempts++;
+      const candidate = randomSolution(size);
+      const clues = computeClues(candidate);
+      const solved = logicSolve(clues.rows, clues.cols, size);
+      if (solved.solved && !solved.contradiction) {
+        // Use the solved grid (ensures internal consistency)
+        return {
+          solution: solved.grid.map(row => row.map(v => v === 1)),
+          rows: clues.rows,
+          cols: clues.cols,
+          attempts
+        };
+      }
+      // Yield to UI occasionally
+      if (attempts % 20 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+    return null;
+  }
+
+  function setBusy(on) {
+    if (!els.busy) return;
+    els.busy.classList.toggle('is-on', !!on);
+    els.busy.setAttribute('aria-hidden', on ? 'false' : 'true');
   }
 
   function makeEl(tag, cls, text) {
@@ -269,7 +452,7 @@
     State.won = false;
   }
 
-  function newGame(size) {
+  function newGame(size, preset = null) {
     State.size = size;
     setCssVars();
 
@@ -279,11 +462,18 @@
       els.winModal.setAttribute('aria-hidden', 'true');
     }
 
-    State.solution = randomSolution(size);
-    State.player = emptyPlayer(size);
-    const clues = computeClues(State.solution);
-    State.rowClues = clues.rows;
-    State.colClues = clues.cols;
+    if (preset && preset.solution && preset.rows && preset.cols) {
+      State.solution = preset.solution;
+      State.rowClues = preset.rows;
+      State.colClues = preset.cols;
+      State.player = emptyPlayer(size);
+    } else {
+      State.solution = randomSolution(size);
+      State.player = emptyPlayer(size);
+      const clues = computeClues(State.solution);
+      State.rowClues = clues.rows;
+      State.colClues = clues.cols;
+    }
 
     // Adjust corner size based on clue depth
     const maxColDepth = Math.max(...State.colClues.map(c => c.length));
@@ -367,9 +557,22 @@
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('contextmenu', preventContext);
 
-    els.newBtn.addEventListener('click', () => {
-      newGame(State.size);
-      toast('New puzzle');
+    els.newBtn.addEventListener('click', async () => {
+      if (els.ensureSolvable?.checked) {
+        setBusy(true);
+        const pre = await generateSolvablePuzzle(State.size);
+        setBusy(false);
+        if (pre) {
+          newGame(State.size, pre);
+          toast('New solvable puzzle');
+        } else {
+          newGame(State.size);
+          toast('New puzzle');
+        }
+      } else {
+        newGame(State.size);
+        toast('New puzzle');
+      }
     });
 
     els.checkBtn.addEventListener('click', () => {
@@ -377,9 +580,22 @@
       else toast('Not solved yet');
     });
 
-    els.sizeSelect.addEventListener('change', (e) => {
+    els.sizeSelect.addEventListener('change', async (e) => {
       const size = parseInt(e.target.value, 10);
-      newGame(size);
+      if (els.ensureSolvable?.checked) {
+        setBusy(true);
+        const pre = await generateSolvablePuzzle(size);
+        setBusy(false);
+        if (pre) {
+          newGame(size, pre);
+          toast('New solvable puzzle');
+        } else {
+          newGame(size);
+          toast('New puzzle');
+        }
+      } else {
+        newGame(size);
+      }
     });
 
     els.modeFill.addEventListener('click', () => setMode('fill'));
@@ -391,9 +607,22 @@
     });
 
     // Modal actions
-    els.modalNew?.addEventListener('click', () => {
+    els.modalNew?.addEventListener('click', async () => {
       closeWinModal();
-      newGame(State.size);
+      if (els.ensureSolvable?.checked) {
+        setBusy(true);
+        const pre = await generateSolvablePuzzle(State.size);
+        setBusy(false);
+        if (pre) {
+          newGame(State.size, pre);
+          toast('New solvable puzzle');
+        } else {
+          newGame(State.size);
+          toast('New puzzle');
+        }
+      } else {
+        newGame(State.size);
+      }
     });
     els.modalClose?.addEventListener('click', () => {
       closeWinModal();

@@ -23,6 +23,10 @@
           <option value="20">20 × 20</option>
         </select>
         <button id="newBtn" class="btn">New puzzle</button>
+        <label class="toggle">
+          <input type="checkbox" id="ensureSolvable">
+          <span>Ensure solvable</span>
+        </label>
       </div>
 
       <div class="controls__right">
@@ -61,6 +65,13 @@
           <button id="modalNew" class="btn btn--primary" type="button">New puzzle</button>
           <button id="modalClose" class="btn" type="button">Close</button>
         </div>
+      </div>
+    </div>
+
+    <div id="busy" class="busy" aria-hidden="true">
+      <div class="busy__box" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="busy__text">Generating puzzle…</div>
       </div>
     </div>
   </main>
