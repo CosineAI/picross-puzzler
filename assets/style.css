@@ -274,7 +274,7 @@ footer {
   width: var(--cell);
   height: var(--cell);
   cursor: pointer;
-  background: #fff;
+  background: transparent; /* show board gridlines */
   transition: background-color 140ms ease, transform 120ms ease, box-shadow 140ms ease;
   outline: none;
   border: none;
