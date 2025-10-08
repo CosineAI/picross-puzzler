@@ -14,7 +14,6 @@
     winModal: document.getElementById('winModal'),
     modalNew: document.getElementById('modalNew'),
     modalClose: document.getElementById('modalClose'),
-    ensureSolvable: document.getElementById('ensureSolvable'),
     busy: document.getElementById('busy'),
   };
 
@@ -275,6 +274,25 @@
     if (!els.busy) return;
     els.busy.classList.toggle('is-on', !!on);
     els.busy.setAttribute('aria-hidden', on ? 'false' : 'true');
+  }
+
+  async function generateSolvablePuzzleForever(size) {
+    let pre = null;
+    while (!pre) {
+      pre = await generateSolvablePuzzle(size);
+      if (!pre) {
+        // yield to UI and try again
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+    return pre;
+  }
+
+  async function newSolvableGame(size) {
+    setBusy(true);
+    const pre = await generateSolvablePuzzleForever(size);
+    setBusy(false);
+    newGame(size, pre);
   }
 
   function makeEl(tag, cls, text) {
@@ -558,21 +576,11 @@
     window.addEventListener('contextmenu', preventContext);
 
     els.newBtn.addEventListener('click', async () => {
-      if (els.ensureSolvable?.checked) {
-        setBusy(true);
-        const pre = await generateSolvablePuzzle(State.size);
-        setBusy(false);
-        if (pre) {
-          newGame(State.size, pre);
-          toast('New solvable puzzle');
-        } else {
-          newGame(State.size);
-          toast('New puzzle');
-        }
-      } else {
-        newGame(State.size);
-        toast('New puzzle');
-      }
+      setBusy(true);
+      const pre = await generateSolvablePuzzleForever(State.size);
+      setBusy(false);
+      newGame(State.size, pre);
+      toast('New solvable puzzle');
     });
 
     els.checkBtn.addEventListener('click', () => {
@@ -582,20 +590,11 @@
 
     els.sizeSelect.addEventListener('change', async (e) => {
       const size = parseInt(e.target.value, 10);
-      if (els.ensureSolvable?.checked) {
-        setBusy(true);
-        const pre = await generateSolvablePuzzle(size);
-        setBusy(false);
-        if (pre) {
-          newGame(size, pre);
-          toast('New solvable puzzle');
-        } else {
-          newGame(size);
-          toast('New puzzle');
-        }
-      } else {
-        newGame(size);
-      }
+      setBusy(true);
+      const pre = await generateSolvablePuzzleForever(size);
+      setBusy(false);
+      newGame(size, pre);
+      toast('New solvable puzzle');
     });
 
     els.modeFill.addEventListener('click', () => setMode('fill'));
@@ -609,20 +608,11 @@
     // Modal actions
     els.modalNew?.addEventListener('click', async () => {
       closeWinModal();
-      if (els.ensureSolvable?.checked) {
-        setBusy(true);
-        const pre = await generateSolvablePuzzle(State.size);
-        setBusy(false);
-        if (pre) {
-          newGame(State.size, pre);
-          toast('New solvable puzzle');
-        } else {
-          newGame(State.size);
-          toast('New puzzle');
-        }
-      } else {
-        newGame(State.size);
-      }
+      setBusy(true);
+      const pre = await generateSolvablePuzzleForever(State.size);
+      setBusy(false);
+      newGame(State.size, pre);
+      toast('New solvable puzzle');
     });
     els.modalClose?.addEventListener('click', () => {
       closeWinModal();
@@ -642,7 +632,7 @@
     setMode('fill');
     State.showMistakes = false;
     setCssVars();
-    newGame(State.size);
+    newSolvableGame(State.size);
   }
 
   document.addEventListener('DOMContentLoaded', init);
