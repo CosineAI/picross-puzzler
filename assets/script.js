@@ -17,6 +17,7 @@
     modalClose: document.getElementById('modalClose'),
     busy: document.getElementById('busy'),
     timer: document.getElementById('timer'),
+    drawModeToggle: document.getElementById('drawModeToggle'),
   };
 
   const State = {
@@ -35,6 +36,8 @@
     timerStart: 0,
     timerElapsed: 0, // ms
     timerId: null,
+    // Draw mode
+    drawMode: false,
   };
 
   function cellSizeFor(size) {
@@ -100,6 +103,10 @@
       lineCluesFromBools(solution.map(row => row[c]))
     );
     return { rows, cols };
+  }
+
+  function blankSolution(size) {
+    return Array.from({ length: size }, () => Array.from({ length: size }, () => false));
   }
 
   // ----------------------------
@@ -489,7 +496,8 @@
         const x = makeEl('span', 'x');
         btn.appendChild(x);
 
-        applyCellClass(btn, State.player[r][c], false);
+        const val = State.drawMode ? (State.solution[r][c] ? 1 : 0) : State.player[r][c];
+        applyCellClass(btn, val, false);
         els.board.appendChild(btn);
       }
     }
@@ -512,6 +520,17 @@
     if (prev === val) return;
 
     State.player[r][c] = val;
+    const idx = r * State.size + c;
+    const el = els.board.children[idx];
+    applyCellClass(el, val, animate);
+  }
+
+  function setSolutionCell(r, c, val, animate = true) {
+    if (r < 0 || c < 0 || r >= State.size || c >= State.size) return;
+    const prev = State.solution[r][c] ? 1 : 0;
+    if (prev === val) return;
+
+    State.solution[r][c] = val === 1;
     const idx = r * State.size + c;
     const el = els.board.children[idx];
     applyCellClass(el, val, animate);
@@ -659,6 +678,18 @@
     updateShareURL();
   }
 
+  function updateCornerDims() {
+    const size = State.size;
+    const maxColDepth = Math.max(...State.colClues.map(c => c.length));
+    const maxRowDepth = Math.max(...State.rowClues.map(r => r.length));
+    const corner = document.querySelector('.corner');
+    if (corner) {
+      const px = Math.max(60, Math.floor(cellSizeFor(size) * Math.max(maxColDepth, 2) * 0.9));
+      corner.style.minHeight = `${px}px`;
+      corner.style.minWidth = `${Math.max(72, Math.floor(cellSizeFor(size) * Math.max(maxRowDepth, 2) * 1.2))}px`;
+    }
+  }
+
   // Interaction
   function desiredActionFromEvent(e) {
     if (e.button === 2 || e.buttons === 2) return 'mark';
@@ -671,10 +702,30 @@
     if (!target) return;
     e.preventDefault();
 
-    startTimerIfNeeded();
-
     const r = +target.dataset.row;
     const c = +target.dataset.col;
+
+    if (State.drawMode) {
+      const kind = desiredActionFromEvent(e);
+      const current = State.solution[r][c] ? 1 : 0;
+      const desired = kind === 'mark' ? 0 : 1; // right-click erases
+      const paintTo = current === desired ? 0 : desired;
+
+      State.dragging = true;
+      State.dragValue = paintTo; // 0/1
+      setSolutionCell(r, c, paintTo, true);
+      // Recompute clues live
+      const clues = computeClues(State.solution);
+      State.rowClues = clues.rows;
+      State.colClues = clues.cols;
+      updateCornerDims();
+      renderClues();
+      updateShareURL();
+      return;
+    }
+
+    startTimerIfNeeded();
+
     const current = State.player[r][c];
     const kind = desiredActionFromEvent(e);
     let desired = kind === 'fill' ? 1 : 2;
@@ -694,12 +745,30 @@
     if (!target) return;
     const r = +target.dataset.row;
     const c = +target.dataset.col;
+
+    if (State.drawMode) {
+      setSolutionCell(r, c, State.dragValue, false);
+      return;
+    }
+
     setCell(r, c, State.dragValue, false);
   }
 
   function onPointerUp() {
     if (!State.dragging) return;
     State.dragging = false;
+
+    if (State.drawMode) {
+      // After drawing pass, refresh clues and URL
+      const clues = computeClues(State.solution);
+      State.rowClues = clues.rows;
+      State.colClues = clues.cols;
+      updateCornerDims();
+      renderClues();
+      updateShareURL();
+      return;
+    }
+
     updateClueStatus();
     showMistakesIfNeeded();
     if (isSolved()) {
@@ -720,6 +789,20 @@
     els.modeMark.setAttribute('aria-pressed', String(mode === 'mark'));
   }
 
+  function setDrawMode(on) {
+    State.drawMode = !!on;
+    // Disable paint/mark and mistakes in draw mode
+    els.modeFill.disabled = State.drawMode;
+    els.modeMark.disabled = State.drawMode;
+    els.mistakesToggle.disabled = State.drawMode;
+    // Stop timer in draw mode
+    if (State.drawMode) stopTimer();
+    buildBoard();
+    // Clues already describe State.solution; re-render for safety
+    renderClues();
+    updateShareURL();
+  }
+
   // Wire up
   function bindEvents() {
     els.board.addEventListener('pointerdown', onPointerDown);
@@ -728,6 +811,14 @@
     window.addEventListener('contextmenu', preventContext);
 
     els.newBtn.addEventListener('click', async () => {
+      if (State.drawMode) {
+        // Clear to blank canvas for drawing
+        const grid = blankSolution(State.size);
+        const clues = computeClues(grid);
+        newGame(State.size, { solution: grid, rows: clues.rows, cols: clues.cols });
+        toast('Blank canvas');
+        return;
+      }
       setBusy(true);
       const pre = await generateSolvablePuzzleForever(State.size);
       setBusy(false);
@@ -743,6 +834,15 @@
     // Share link
     els.shareBtn?.addEventListener('click', async () => {
       try {
+        if (State.drawMode) {
+          // Quick solvability check (logic-based)
+          const clues = computeClues(State.solution);
+          const solved = logicSolve(clues.rows, clues.cols, State.size);
+          if (!solved.solved || solved.contradiction) {
+            toast('Puzzle not solvable by logic');
+            return;
+          }
+        }
         updateShareURL();
         await navigator.clipboard.writeText(window.location.href);
         toast('Link copied');
@@ -753,6 +853,13 @@
 
     els.sizeSelect.addEventListener('change', async (e) => {
       const size = parseInt(e.target.value, 10);
+      if (State.drawMode) {
+        const grid = blankSolution(size);
+        const clues = computeClues(grid);
+        newGame(size, { solution: grid, rows: clues.rows, cols: clues.cols });
+        toast('Blank canvas');
+        return;
+      }
       setBusy(true);
       const pre = await generateSolvablePuzzleForever(size);
       setBusy(false);
@@ -766,6 +873,11 @@
     els.mistakesToggle.addEventListener('change', (e) => {
       State.showMistakes = e.target.checked;
       showMistakesIfNeeded();
+    });
+
+    // Draw mode toggle
+    els.drawModeToggle?.addEventListener('change', (e) => {
+      setDrawMode(e.target.checked);
     });
 
     // Modal actions
@@ -794,6 +906,11 @@
     bindEvents();
     setMode('fill');
     State.showMistakes = false;
+    State.drawMode = false;
+    if (els.drawModeToggle) els.drawModeToggle.checked = false;
+    if (els.modeFill) els.modeFill.disabled = false;
+    if (els.modeMark) els.modeMark.disabled = false;
+    if (els.mistakesToggle) els.mistakesToggle.disabled = false;
 
     // Load from URL if provided
     const preset = loadFromURL();
