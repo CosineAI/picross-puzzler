@@ -47,18 +47,23 @@
   }
 
   function fillProbability(size) {
-    return Math.max(0.28, 0.5 - (size - 5) * 0.02);
+    const base = 0.5 - (size - 5) * 0.015; // gentler drop-off for larger boards
+    const adjusted = base + 0.08; // nudge density higher overall
+    return Math.min(0.62, Math.max(0.35, adjusted));
   }
 
   function randomSolution(size) {
     const p = fillProbability(size);
+    const total = size * size;
+    const minFill = Math.floor(total * Math.max(0.32, p - 0.12));
+    const maxFill = Math.ceil(total * Math.min(0.78, p + 0.12));
     let grid, filled;
     do {
       grid = Array.from({ length: size }, () =>
         Array.from({ length: size }, () => randBool(p))
       );
       filled = grid.flat().filter(Boolean).length;
-    } while (filled < Math.max(3, Math.floor(size * 1.2)) || filled > size * size * 0.72);
+    } while (filled < minFill || filled > maxFill);
     return grid;
   }
 
