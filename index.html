@@ -52,6 +52,17 @@
     <p class="hint">Tip: Left-click to paint, right-click to mark with an X. Hold and drag to draw. Use the mode toggle to lock Paint or Mark.</p>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <div id="winModal" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+        <h2 id="winTitle" class="modal__title">Congratulations!</h2>
+        <p class="modal__text">You solved the puzzle. Great job!</p>
+        <div class="modal__actions">
+          <button id="modalNew" class="btn btn--primary" type="button">New puzzle</button>
+          <button id="modalClose" class="btn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <footer>

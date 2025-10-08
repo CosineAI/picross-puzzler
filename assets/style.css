@@ -375,6 +375,57 @@ footer {
   opacity: 1;
 }
 
+/* Win modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(17,24,39,0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  z-index: 100;
+}
+
+.modal-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal {
+  width: min(92vw, 520px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.25);
+  padding: 1.2rem 1.4rem 1rem;
+  transform: translateY(6px) scale(.98);
+  opacity: .98;
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.modal-backdrop.is-open .modal {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.modal__title {
+  margin: 0 0 .35rem;
+  font-size: 1.35rem;
+}
+
+.modal__text {
+  margin: 0 0 .9rem;
+  color: #4b5563;
+}
+
+.modal__actions {
+  display: flex;
+  gap: .6rem;
+  justify-content: flex-end;
+  margin-top: .6rem;
+}
+
 /* Responsive tweaks */
 @media (max-width: 850px) {
   main {

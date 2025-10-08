@@ -11,6 +11,9 @@
     modeMark: document.getElementById('modeMark'),
     mistakesToggle: document.getElementById('mistakesToggle'),
     toast: document.getElementById('toast'),
+    winModal: document.getElementById('winModal'),
+    modalNew: document.getElementById('modalNew'),
+    modalClose: document.getElementById('modalClose'),
   };
 
   const State = {
@@ -23,6 +26,7 @@
     dragging: false,
     dragValue: 0, // 0 empty, 1 filled, 2 marked
     showMistakes: false,
+    won: false,
   };
 
   function cellSizeFor(size) {
@@ -242,9 +246,33 @@
     }, 1600);
   }
 
+  function openWinModal() {
+    if (State.won) return;
+    State.won = true;
+    if (!els.winModal) return;
+    els.winModal.classList.add('is-open');
+    els.winModal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => {
+      els.modalNew?.focus();
+    }, 0);
+  }
+
+  function closeWinModal() {
+    if (!els.winModal) return;
+    els.winModal.classList.remove('is-open');
+    els.winModal.setAttribute('aria-hidden', 'true');
+    State.won = false;
+  }
+
   function newGame(size) {
     State.size = size;
     setCssVars();
+
+    State.won = false;
+    if (els.winModal) {
+      els.winModal.classList.remove('is-open');
+      els.winModal.setAttribute('aria-hidden', 'true');
+    }
 
     State.solution = randomSolution(size);
     State.player = emptyPlayer(size);
@@ -310,7 +338,7 @@
     updateClueStatus();
     showMistakesIfNeeded();
     if (isSolved()) {
-      toast('Solved! 🎉');
+      openWinModal();
     }
   }
 
@@ -340,7 +368,8 @@
     });
 
     els.checkBtn.addEventListener('click', () => {
-      toast(isSolved() ? 'Looks good! ✅' : 'Not solved yet');
+      if (isSolved()) openWinModal();
+      else toast('Not solved yet');
     });
 
     els.sizeSelect.addEventListener('change', (e) => {
@@ -354,6 +383,23 @@
     els.mistakesToggle.addEventListener('change', (e) => {
       State.showMistakes = e.target.checked;
       showMistakesIfNeeded();
+    });
+
+    // Modal actions
+    els.modalNew?.addEventListener('click', () => {
+      closeWinModal();
+      newGame(State.size);
+    });
+    els.modalClose?.addEventListener('click', () => {
+      closeWinModal();
+    });
+    els.winModal?.addEventListener('click', (e) => {
+      if (e.target === els.winModal) closeWinModal();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && els.winModal?.classList.contains('is-open')) {
+        closeWinModal();
+      }
     });
   }
 
