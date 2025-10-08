@@ -262,10 +262,12 @@ footer {
   grid-template-columns: repeat(var(--size), var(--cell));
   grid-template-rows: repeat(var(--size), var(--cell));
   background:
+    /* thicker lines every 5 cells (on top) */
+    linear-gradient(#c7cdd6 2px, transparent 2px) 0 0 / calc(var(--cell) * 5) calc(var(--cell) * 5),
+    linear-gradient(90deg, #c7cdd6 2px, transparent 2px) 0 0 / calc(var(--cell) * 5) calc(var(--cell) * 5),
+    /* light gridlines */
     linear-gradient(#e5e7eb 1px, transparent 1px) 0 0 / var(--cell) var(--cell),
-    linear-gradient(90deg, #e5e7eb 1px, transparent 1px) 0 0 / var(--cell) var(--cell),
-    linear-gradient(#c7cdd6 1px, transparent 1px) 0 0 / calc(var(--cell) * 5) calc(var(--cell) * 5),
-    linear-gradient(90deg, #c7cdd6 1px, transparent 1px) 0 0 / calc(var(--cell) * 5) calc(var(--cell) * 5);
+    linear-gradient(90deg, #e5e7eb 1px, transparent 1px) 0 0 / var(--cell) var(--cell);
   user-select: none;
 }
 
