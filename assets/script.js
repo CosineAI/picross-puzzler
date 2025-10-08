@@ -80,7 +80,7 @@
     const size = solution.length;
     const rows = solution.map(lineCluesFromBools);
     const cols = Array.from({ length: size }, (_, c) =>
-      lineCluesFromBools(solution.map(r => solution[r][c]))
+      lineCluesFromBools(solution.map(row => row[c]))
     );
     return { rows, cols };
   }
