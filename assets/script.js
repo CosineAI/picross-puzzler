@@ -6,6 +6,7 @@
     colClues: document.getElementById('colClues'),
     sizeSelect: document.getElementById('sizeSelect'),
     newBtn: document.getElementById('newBtn'),
+    shareBtn: document.getElementById('shareBtn'),
     checkBtn: document.getElementById('checkBtn'),
     modeFill: document.getElementById('modeFill'),
     modeMark: document.getElementById('modeMark'),
@@ -15,6 +16,7 @@
     modalNew: document.getElementById('modalNew'),
     modalClose: document.getElementById('modalClose'),
     busy: document.getElementById('busy'),
+    timer: document.getElementById('timer'),
   };
 
   const State = {
@@ -28,6 +30,11 @@
     dragValue: 0, // 0 empty, 1 filled, 2 marked
     showMistakes: false,
     won: false,
+    // Timer
+    timerRunning: false,
+    timerStart: 0,
+    timerElapsed: 0, // ms
+    timerId: null,
   };
 
   function cellSizeFor(size) {
@@ -276,6 +283,88 @@
     els.busy.setAttribute('aria-hidden', on ? 'false' : 'true');
   }
 
+  // ----------------------------
+  // URL encoding/decoding for shareable puzzles
+  // ----------------------------
+
+  function toBase64Url(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+
+  function fromBase64Url(str) {
+    const pad = (s) => s + '==='.slice((s.length + 3) % 4);
+    const b64 = pad(str.replace(/-/g, '+').replace(/_/g, '/'));
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function encodeSolutionToParam(solution) {
+    const size = solution.length;
+    const totalBits = size * size;
+    const byteLen = Math.ceil(totalBits / 8);
+    const bytes = new Uint8Array(byteLen);
+    let bitIndex = 0;
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        const bit = solution[r][c] ? 1 : 0;
+        if (bit) {
+          const byteIndex = bitIndex >> 3;
+          const offset = 7 - (bitIndex & 7); // big-endian within byte
+          bytes[byteIndex] |= (1 << offset);
+        }
+        bitIndex++;
+      }
+    }
+    return toBase64Url(bytes);
+  }
+
+  function decodeSolutionFromParam(size, param) {
+    const totalBits = size * size;
+    const bytes = fromBase64Url(param);
+    const grid = Array.from({ length: size }, () => new Array(size).fill(false));
+    let bitIndex = 0;
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        const byteIndex = bitIndex >> 3;
+        const offset = 7 - (bitIndex & 7);
+        const bit = (bytes[byteIndex] >> offset) & 1;
+        grid[r][c] = bit === 1;
+        bitIndex++;
+      }
+    }
+    return grid;
+  }
+
+  function updateShareURL() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      params.set('s', String(State.size));
+      params.set('p', encodeSolutionToParam(State.solution));
+      const url = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', url);
+    } catch (e) {
+      // ignore URL errors
+    }
+  }
+
+  function loadFromURL() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const p = params.get('p');
+      const s = parseInt(params.get('s') || '', 10);
+      if (!p || !s || ![5,10,15,20].includes(s)) return null;
+      const grid = decodeSolutionFromParam(s, p);
+      const clues = computeClues(grid);
+      return { solution: grid, rows: clues.rows, cols: clues.cols, size: s };
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function generateSolvablePuzzleForever(size) {
     let pre = null;
     while (!pre) {
@@ -293,6 +382,58 @@
     const pre = await generateSolvablePuzzleForever(size);
     setBusy(false);
     newGame(size, pre);
+  }
+
+  // ----------------------------
+  // Timer
+  // ----------------------------
+  function formatTime(ms) {
+    const total = Math.floor(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    const mm = m.toString().padStart(2, '0');
+    const ss = s.toString().padStart(2, '0');
+    return `${mm}:${ss}`;
+  }
+
+  function updateTimerDisplay() {
+    if (!els.timer) return;
+    els.timer.textContent = formatTime(State.timerElapsed);
+  }
+
+  function resetTimer() {
+    if (State.timerId) {
+      clearInterval(State.timerId);
+      State.timerId = null;
+    }
+    State.timerRunning = false;
+    State.timerStart = 0;
+    State.timerElapsed = 0;
+    updateTimerDisplay();
+  }
+
+  function startTimerIfNeeded() {
+    if (State.timerRunning) return;
+    State.timerRunning = true;
+    State.timerStart = performance.now();
+    State.timerId = setInterval(() => {
+      const now = performance.now();
+      State.timerElapsed = Math.max(0, Math.floor(now - State.timerStart));
+      updateTimerDisplay();
+    }, 1000);
+    // immediate update
+    State.timerElapsed = 0;
+    updateTimerDisplay();
+  }
+
+  function stopTimer() {
+    if (!State.timerRunning) return;
+    const now = performance.now();
+    State.timerElapsed = Math.max(State.timerElapsed, Math.floor(now - State.timerStart));
+    clearInterval(State.timerId);
+    State.timerId = null;
+    State.timerRunning = false;
+    updateTimerDisplay();
   }
 
   function makeEl(tag, cls, text) {
@@ -455,7 +596,13 @@
   function openWinModal() {
     if (State.won) return;
     State.won = true;
+    stopTimer();
     if (!els.winModal) return;
+    // If modal has a text element, add time summary
+    const textEl = els.winModal.querySelector('.modal__text');
+    if (textEl) {
+      textEl.textContent = `You solved the puzzle. Great job! Time: ${formatTime(State.timerElapsed)}.`;
+    }
     els.winModal.classList.add('is-open');
     els.winModal.setAttribute('aria-hidden', 'false');
     setTimeout(() => {
@@ -474,6 +621,8 @@
     State.size = size;
     setCssVars();
 
+    // reset timer and modal state
+    resetTimer();
     State.won = false;
     if (els.winModal) {
       els.winModal.classList.remove('is-open');
@@ -507,6 +656,7 @@
     buildBoard();
     updateClueStatus();
     showMistakesIfNeeded();
+    updateShareURL();
   }
 
   // Interaction
@@ -520,6 +670,8 @@
     const target = e.target.closest('.cell');
     if (!target) return;
     e.preventDefault();
+
+    startTimerIfNeeded();
 
     const r = +target.dataset.row;
     const c = +target.dataset.col;
@@ -588,6 +740,17 @@
       else toast('Not solved yet');
     });
 
+    // Share link
+    els.shareBtn?.addEventListener('click', async () => {
+      try {
+        updateShareURL();
+        await navigator.clipboard.writeText(window.location.href);
+        toast('Link copied');
+      } catch {
+        toast('Copy failed');
+      }
+    });
+
     els.sizeSelect.addEventListener('change', async (e) => {
       const size = parseInt(e.target.value, 10);
       setBusy(true);
@@ -631,8 +794,18 @@
     bindEvents();
     setMode('fill');
     State.showMistakes = false;
-    setCssVars();
-    newSolvableGame(State.size);
+
+    // Load from URL if provided
+    const preset = loadFromURL();
+    if (preset && preset.size) {
+      State.size = preset.size;
+      if (els.sizeSelect) els.sizeSelect.value = String(State.size);
+      setCssVars();
+      newGame(State.size, preset);
+    } else {
+      setCssVars();
+      newSolvableGame(State.size);
+    }
   }
 
   document.addEventListener('DOMContentLoaded', init);
