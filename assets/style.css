@@ -116,6 +116,13 @@ footer {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
+.btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .btn--primary {
   background: linear-gradient(135deg, #4f46e5, #6366f1);
   color: #fff;

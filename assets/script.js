@@ -372,6 +372,27 @@
     }
   }
 
+  // ----------------------------
+  // Share button enable/disable by solvability in Draw mode
+  // ----------------------------
+  function isSolutionSolvable(solution, size) {
+    const clues = computeClues(solution);
+    const res = logicSolve(clues.rows, clues.cols, size);
+    return res.solved && !res.contradiction;
+  }
+
+  function updateShareButtonState() {
+    if (!els.shareBtn) return;
+    if (State.drawMode) {
+      const ok = isSolutionSolvable(State.solution, State.size);
+      els.shareBtn.disabled = !ok;
+      els.shareBtn.title = ok ? 'Copy shareable link' : 'Puzzle must be solvable to share';
+    } else {
+      els.shareBtn.disabled = false;
+      els.shareBtn.title = 'Copy shareable link';
+    }
+  }
+
   async function generateSolvablePuzzleForever(size) {
     let pre = null;
     while (!pre) {
@@ -721,6 +742,7 @@
       updateCornerDims();
       renderClues();
       updateShareURL();
+      updateShareButtonState();
       return;
     }
 
@@ -766,6 +788,7 @@
       updateCornerDims();
       renderClues();
       updateShareURL();
+      updateShareButtonState();
       return;
     }
 
@@ -801,6 +824,7 @@
     // Clues already describe State.solution; re-render for safety
     renderClues();
     updateShareURL();
+    updateShareButtonState();
   }
 
   // Wire up
@@ -816,6 +840,7 @@
         const grid = blankSolution(State.size);
         const clues = computeClues(grid);
         newGame(State.size, { solution: grid, rows: clues.rows, cols: clues.cols });
+        updateShareButtonState();
         toast('Blank canvas');
         return;
       }
@@ -857,6 +882,7 @@
         const grid = blankSolution(size);
         const clues = computeClues(grid);
         newGame(size, { solution: grid, rows: clues.rows, cols: clues.cols });
+        updateShareButtonState();
         toast('Blank canvas');
         return;
       }
@@ -923,6 +949,9 @@
       setCssVars();
       newSolvableGame(State.size);
     }
+
+    // Initialize share button state
+    updateShareButtonState();
   }
 
   document.addEventListener('DOMContentLoaded', init);
